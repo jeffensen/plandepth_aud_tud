@@ -1,0 +1,3 @@
+{
+    "data": "{\"move\":\"m\",\"jump\":\"y\",\"points_p1\":\"-20\",\"points_p2\":\"-10\",\"points_p3\":\"0\",\"points_p4\":\"+10\",\"points_p5\":\"+20\",\"target_p1\":\"4\",\"target_p2\":\"5\",\"target_p3\":\"5\",\"target_p4\":\"6\",\"target_p5\":\"2\",\"target_p6\":\"2\",\"mcq\":[\"optimality\"]}"
+}
