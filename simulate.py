@@ -4,6 +4,7 @@ and responses. To initiate it one needs to provide the environment
 class and the agent class that will be used for the experiment.
 """
 import torch
+torch.set_default_device('cuda')
 zeros = torch.zeros
 
 
@@ -20,12 +21,16 @@ class Simulator(object):
         # container for agents responses
         self.responses = zeros(self.runs, self.nb, self.nt)-1
         self.outcomes = zeros(self.runs, self.nb, self.nt, dtype=torch.long)-1
+        self.chosen_depths = None
 
     def simulate_experiment(self):
         """Simulates the experiment by iterating through all the mini-blocks and trials,
            for each run in parallel. Here we generate responses and outcomes and update
            agent's beliefs.
         """
+
+        if self.chosen_depths is not None:
+            self.agent.set_forced_depths(self.chosen_depths)
 
         for b in range(self.nb):
             conditions = self.env.conditions[..., b]

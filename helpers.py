@@ -13,6 +13,8 @@ from statistics import stdev, mean
 import math
 from pandas.api.types import is_numeric_dtype
 
+torch.set_default_device('cuda')
+
 def mean_str(col):
     # aggregate function for pandas dataframe that computes mean values for numeric dtypes 
     # and for other dtypes only aggregates if there is only one unique value per group

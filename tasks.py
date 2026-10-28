@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb  8 11:50:01 2018
-
-@author: markovic
+This defines the Space Adventure Task environment. It is a simple MDP with 6 states, 2 actions and 5 observations.
+The agent can either move left or jump. The jump action has a varying level of transition uncertainty
+depending on the condition. The agent can only take a limited number of actions in each mini-block.
 """
 
 import torch
 from torch.distributions import Categorical, Multinomial
-
-ftype = torch.FloatTensor
-itype = torch.LongTensor
+torch.set_default_device('cuda')
 
 ones = torch.ones
 zeros = torch.zeros
@@ -30,7 +28,7 @@ class SpaceAdventure(object):
         self.runs = runs # number of runs
         self.nmb = mini_blocks #number of mini-blocks for each run
         
-        self.list = itype(range(runs))
+        self.list = torch.arange(runs, dtype=torch.long)
         
         if outcome_likelihoods is None:
             mnom = Multinomial(probs = ones(self.ns, self.no))
@@ -47,7 +45,7 @@ class SpaceAdventure(object):
         
         self.make_transition_matrix()
         
-        self.states = itype(runs, mini_blocks, trials+1)
+        self.states = torch.zeros((runs, mini_blocks, trials+1), dtype=torch.long)
         if init_states is not None:
             self.states[..., 0] = init_states
         else:
@@ -88,7 +86,7 @@ class SpaceAdventure(object):
         res = responses[self.valid].long()
         states = self.states[self.valid, block, trial]
                 
-        state_prob = tm[range(self.count), res, states]
+        state_prob = tm[torch.arange(self.count), res, states]
         assert state_prob.shape == (self.count, self.ns)
         cat = Categorical(probs=state_prob)
         

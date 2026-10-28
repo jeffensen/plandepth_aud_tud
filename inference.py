@@ -23,13 +23,16 @@ from pyro.infer.discrete import TraceEnumSample_ELBO, infer_discrete
 from pyro.optim import Adam
 from pyro.ops.indexing import Vindex
 
+torch.set_default_device('cuda')
+
 
 class Inferrer(object):
     def __init__(self,
                  agent,
                  stimuli,
                  responses,
-                 mask):
+                 mask,
+                 prior_scale=1.0):
 
         self.agent = agent
         self.nsub, self.nblk = responses.shape[:2]
@@ -47,6 +50,8 @@ class Inferrer(object):
         self.configs = stimuli['configs']
         self.conditions = stimuli['conditions']
 
+        self.prior_scale = prior_scale
+
     def model_static(self):
         """Assume static prior over planning depth per condition.
         """
@@ -63,7 +68,7 @@ class Inferrer(object):
         r = param('r', 2*ones(np), constraint=constraints.positive)
         tau = sample('tau', dist.Gamma(a, r/a).to_event(1))
 
-        sig = 1./torch.sqrt(tau) # transformation to finally get normal-inverse-gamma für mu, see below
+        sig = 1./torch.sqrt(tau) * self.prior_scale # transformation to finally get normal-inverse-gamma für mu, see below
         # define prior mean over model parameters
         m = param('m', zeros(np))
         s = param('s', ones(np), constraint=constraints.positive)
@@ -391,10 +396,9 @@ class Inferrer(object):
 
         keys = ['mu', 'tau', 'locs']
 
-        trans_pars = np.zeros((n_samples, nsub, npars))
-
-        mean_global = np.zeros((n_samples, npars))
-        tau_global = np.zeros((n_samples, npars))
+        trans_pars = torch.zeros((n_samples, nsub, npars))
+        mean_global = torch.zeros((n_samples, npars))
+        tau_global = torch.zeros((n_samples, npars))
 
         for i in range(n_samples):
             sample = self.guide()
@@ -405,20 +409,19 @@ class Inferrer(object):
             tau = sample['tau']
             pars = sample['locs']
 
-            trans_pars[i] = pars.detach().numpy()
+            trans_pars[i] = pars.detach()
+            mean_global[i] = mu.detach()
+            tau_global[i] = tau.detach()
 
-            mean_global[i] = mu.detach().numpy()
-            tau_global[i] = tau.detach().numpy()
-
-        order = (self.conditions[-1, :, 0] == 3) + 1
+        order = ((self.conditions[-1, :, 0] == 3) + 1).cpu().numpy()
         order_label = np.tile(order, (n_samples, 1)).reshape(-1)
         subject_label = np.tile(range(1, nsub+1), (n_samples, 1)).reshape(-1)
-        tp_df = pd.DataFrame(data=trans_pars.reshape(-1, npars), columns=labels)
+        tp_df = pd.DataFrame(data=trans_pars.cpu().numpy().reshape(-1, npars), columns=labels)
         tp_df['subject'] = subject_label
         tp_df['order'] = order_label
 
-        mg_df = pd.DataFrame(data=mean_global, columns=labels)
-        tg_df = pd.DataFrame(data=tau_global, columns=labels)
+        mg_df = pd.DataFrame(data=mean_global.cpu().numpy(), columns=labels)
+        tg_df = pd.DataFrame(data=tau_global.cpu().numpy(), columns=labels)
 
         return tp_df, mg_df, tg_df
 
@@ -440,7 +443,7 @@ class Inferrer(object):
                 post_depth_samples[name].append(post_depth[name].probs.detach().clone())
 
         for name in post_depth_samples.keys():
-            post_depth_samples[name] = torch.stack(post_depth_samples[name]).numpy()
+            post_depth_samples[name] = torch.stack(post_depth_samples[name]).cpu().numpy()
 
         return post_depth_samples
 

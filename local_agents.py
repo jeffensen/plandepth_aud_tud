@@ -5,6 +5,8 @@ import torch
 from torch.distributions import Categorical, Bernoulli
 from numpy import nan
 
+torch.set_default_device('cuda')
+
 zeros = torch.zeros
 ones = torch.ones
 randn = torch.randn
@@ -1017,6 +1019,11 @@ class BackInduction_LPP_and_probDiscounting(object):
 
         self.transitions = torch.tensor([4, 3, 4, 5, 1, 1])
 
+    def set_forced_depths(self, chosen_depths):
+        """Inject externally sampled discrete planning depths for all parallel runs."""
+        self.forced_depths = chosen_depths
+
+
     def set_parameters(self, trans_par=None, true_params=False):
         # [INPUT]
         # 1) None OR
@@ -1205,6 +1212,10 @@ class BackInduction_LPP_and_probDiscounting(object):
             self.depths.append(depths)
         else:
             depths = self.depths[-1]
+
+        # Override internal sampling if empirical depths are provided
+        if hasattr(self, 'forced_depths'):
+            depths = self.forced_depths[:, block, trial].long()
 
         d = self.max_trials - trial - 1
         loc = d > depths
